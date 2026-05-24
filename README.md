@@ -5,6 +5,11 @@ The goal of this script is to prevent SEB to start new obfuscated desktop and pu
 
 ## Installation
 
+Download the binary [nava_standalone64.exe](https://github.com/seynth/NavaInjector/releases/download/1.0.0/nava_standalone64.exe)
+
+or 
+
+## Build from scratch
 
 ```bash
 git clone https://github.com/seynth/NavaInjector
