@@ -2,3 +2,13 @@
 *.h
 *.vscode
 *.vs
+*.pdb
+*.ilk
+*.log
+*.tmp
+*.cache
+*.obj
+*.pch
+
+/Milim/bin/
+/Milim/obj/
