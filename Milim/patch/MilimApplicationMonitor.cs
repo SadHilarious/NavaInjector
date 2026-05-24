@@ -43,8 +43,6 @@ namespace Milim.patch
     {
         static bool Prefix(ApplicationMonitor __instance, IProcess process)
         {
-
-            // mengembalikan semua software yang defaultnya diclose/terminate oleh seb
             var thiz = Traverse.Create(__instance);
             var blacklist = thiz.Field("blacklist").GetValue<IList<BlacklistApplication>>();
             var changeAbleName = process.Name.Replace(" ", "").ToLower();

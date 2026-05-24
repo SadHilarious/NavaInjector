@@ -2,44 +2,58 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
 func main() {
 	fmt.Println("[Nava] Welcome . . .")
-	seb := "safeexambrowser.exe"
+	sebParent := "safeexambrowser.exe"
 	sebClient := "safeexambrowser.client"
 
 	fmt.Println("[Nava] Running setup")
-	navaDest := setup()
+	nDll := setup()
 	enablePriv()
 
 	fmt.Println("[Nava] Starting . . .")
-	sebPid := findProcessSync(seb)
+	sebPid := findProcessSync(sebParent)
 
 	if sebPid != 0 {
 		fmt.Println("[Nava] Found parent pid")
 
 		time.Sleep(100 * time.Millisecond)
-		if e := inject(sebPid, navaDest); e != nil {
-			fmt.Println("[Nava::Parent] Failed to inject nava in parent process", e.Error())
+		if e := inject(sebPid, nDll); e != nil {
+			fmt.Println("[Nava::Error] Failed to inject nava in parent process", e.Error())
+		} else {
+			markInjected(sebPid)
+			if e := callExportedFunction(sebPid, nDll, "Nava"); e != nil {
+				fmt.Println("[Nava::Error] Failed to call Nava", e.Error())
+			}
 		}
-
-		if e := callExportedFunction(sebPid, navaDest, "Nava"); e != nil {
-			fmt.Println("[Nava::Parent] Failed to call Nava", e.Error())
-		}
-
-		fmt.Println("[Nava] Call nava for client")
-		clientPid := findProcessSync(sebClient)
-		time.Sleep(200 * time.Millisecond)
-
-		if e := inject(clientPid, navaDest); e != nil {
-			fmt.Println("[Nava::Client] Failed to inject Nava in client", e.Error())
-		}
-		if e := callExportedFunction(clientPid, navaDest, "Nava"); e != nil {
-			fmt.Println("[Nava::Client] Failed to call Nava function", e.Error())
-		}
-
 	}
+
+	fmt.Println("[Nava::AutoReInject] Starting watcher")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		backgroundInject(
+			sebClient,
+			nDll,
+			1*time.Second,
+			func(pid uint32) {
+				// onsuccess
+				fmt.Printf("[Nava::AutoReInject] Calling Nava on PID %d\n", pid)
+				time.Sleep(300 * time.Millisecond)
+				if err := callExportedFunction(pid, nDll, "Nava"); err != nil {
+					fmt.Printf("[Nava::AutoReInject::Error] Call Nava failed: %v\n", err)
+				}
+			},
+		)
+	}()
+
+	select {}
 
 }

@@ -1,15 +1,26 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/gentlemanautomaton/winproc/psapi"
 	"golang.org/x/sys/windows"
 )
+
+//go:embed Milim.dll
+var milimDll []byte
+
+//go:embed nava.dll
+var navaDll []byte
 
 var (
 	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
@@ -21,12 +32,108 @@ var (
 
 	GetModuleHandle = kernel32.NewProc("GetModuleHandleW")
 	GetProcAddress  = kernel32.NewProc("GetProcAddress")
+
+	injectedPIDs = make(map[uint32]bool)
+	mInjected    sync.Mutex
 )
 
 func findProcessSync(name string) uint32 {
 	ch := make(chan uint32, 1)
 	go findProcess(name, ch)
 	return <-ch
+}
+
+func backgroundInject(targetName, dllPath string, interval time.Duration, onInjectSuccess func(uint32)) {
+	fmt.Printf("[Nava] Watching for %s . . . \n", targetName)
+
+	for {
+		pids, err := findProcessesByName(targetName)
+		if err != nil {
+			fmt.Printf("[Nava::Warn] Scan failed: %v\n", err)
+			time.Sleep(interval)
+			continue
+		}
+
+		for _, pid := range pids {
+			if !isInjected(pid) {
+				fmt.Printf("[Nava] Detected %s (PID: %d), injecting...\n", targetName, pid)
+
+				if err := inject(pid, dllPath); err != nil {
+					fmt.Printf("[Nava::Error] Inject failed for PID %d: %v\n", pid, err)
+					continue
+				}
+
+				markInjected(pid)
+				fmt.Printf("[Nava] Injected into PID %d\n", pid)
+
+				if onInjectSuccess != nil {
+					onInjectSuccess(pid)
+				}
+			}
+		}
+
+		cleanDp(pids)
+		time.Sleep(interval)
+	}
+}
+
+func findProcessesByName(targetName string) ([]uint32, error) {
+	var pids []uint32
+	targetName = strings.ToLower(targetName)
+
+	snapshot, err := psapi.CreateSnapshot(psapi.SnapAll, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.CloseHandle(snapshot)
+
+	proc, err := psapi.FirstProcess(snapshot)
+	for err == nil {
+		if strings.Contains(strings.ToLower(proc.Name()), targetName) {
+			pids = append(pids, proc.ProcessID)
+		}
+		proc, err = psapi.NextProcess(snapshot)
+	}
+	return pids, nil
+}
+
+func cleanDp(currentPIDs []uint32) {
+	mInjected.Lock()
+	defer mInjected.Unlock()
+
+	currentSet := make(map[uint32]bool)
+	for _, pid := range currentPIDs {
+		currentSet[pid] = true
+	}
+
+	for pid := range injectedPIDs {
+		if !currentSet[pid] {
+			fmt.Printf("[Nava] Process %d exited removed from tracking\n", pid)
+			delete(injectedPIDs, pid)
+		}
+	}
+}
+
+func isInjected(pid uint32) bool {
+	mInjected.Lock()
+	defer mInjected.Unlock()
+	return injectedPIDs[pid]
+}
+
+func markInjected(pid uint32) {
+	mInjected.Lock()
+	defer mInjected.Unlock()
+	injectedPIDs[pid] = true
+}
+
+func extractDll(data []byte, destPath string) error {
+	if dir := filepath.Dir(destPath); dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
+
+	return os.WriteFile(destPath, data, 0755)
 }
 
 func findProcess(targetProcess string, targetPid chan<- uint32) {

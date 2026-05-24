@@ -13,7 +13,6 @@ namespace Milim.patch
     {
         static void Postfix(ref string __result)
         {
-            // tidak akan membuat Desktop baru, memastikan seb jalan di Default desktop
             Console.WriteLine("[Milim::Patch] Stay in Default desktop");
             __result = "Default";
         }

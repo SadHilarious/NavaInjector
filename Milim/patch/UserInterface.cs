@@ -8,13 +8,11 @@ using SafeExamBrowser.UserInterface.Shared.Utilities;
 
 namespace Milim.patch
 {
-    //bypass window hiding when screencapture
     [HarmonyPatch(typeof(WindowExtensions), nameof(WindowExtensions.ExcludeFromCapture))]
     public class ExcludeFormCapture
     {
         static bool Prefix()
         {
-            // tidak menjalankan function ExcludeFromCapture saat screenshot
             return false;
         }
     }

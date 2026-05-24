@@ -8,29 +8,21 @@ import (
 
 func setup() string {
 
-	tempPath := os.TempDir()
+	temp := os.TempDir()
+	nDllPath := filepath.Join(temp, "nava.dll")
+	mDllPath := filepath.Join(temp, "milim.dll")
 
-	navaDll, e := os.ReadFile(`..\Nava\nava.dll`)
-	if e != nil {
-		fmt.Println("failed read nava dll")
+	fmt.Printf("[Nava] Extracting %s\n", nDllPath)
+	if err := extractDll(navaDll, nDllPath); err != nil {
+		fmt.Printf("[Nava::Error] Failed to extract nava: %v\n", err)
+		return ""
 	}
 
-	milimDll, e := os.ReadFile(`..\Milim\bin\x64\Debug\Milim.dll`)
-	if e != nil {
-		fmt.Println("failed read milim dll")
+	fmt.Printf("[Nava] Extracting %s\n", mDllPath)
+	if err := extractDll(milimDll, mDllPath); err != nil {
+		fmt.Printf("[Nava::Error] Failed to extract milim: %v\n", err)
+		return ""
 	}
 
-	navaDest := filepath.Join(tempPath, "nava.dll")
-	milimDest := filepath.Join(tempPath, "Milim.dll")
-
-	if e := os.WriteFile(navaDest, navaDll, 0644); e != nil {
-		fmt.Println(e.Error())
-	}
-
-	if e := os.WriteFile(milimDest, milimDll, 0644); e != nil {
-		fmt.Println(e.Error())
-	}
-
-	fmt.Println("[Nava] Setup done")
-	return navaDest
+	return nDllPath
 }

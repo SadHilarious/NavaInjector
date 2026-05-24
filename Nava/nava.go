@@ -16,19 +16,6 @@ func checkOK(hr uintptr, caller string) {
 	}
 }
 
-func logToFile(msg string) {
-	userProfile := os.Getenv("USERPROFILE")
-	if userProfile == "" {
-		fmt.Println("[Nava] USERPROFILE not found, fallback")
-		userProfile = `C:\Users\Public\Desktop`
-	}
-	desktopPath := filepath.Join(userProfile, "Desktop")
-	logPath := filepath.Join(desktopPath, "log_nava.txt")
-	f, _ := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	f.WriteString(msg + "\n")
-	f.Close()
-}
-
 func AllocTerm() {
 	AllocConsole.Call()
 
@@ -71,10 +58,9 @@ func Nava() {
 	checkOK(hr, "runtimeInfo.GetInterface")
 	host := clr.NewICLRRuntimeHostFromPtr(pRuntimeHost)
 
-	tempPath := os.TempDir()
-	milimDest := filepath.Join(tempPath, "Milim.dll")
+	mDll := filepath.Join(os.TempDir(), "milim.dll")
 
-	pDLLPath, _ := syscall.UTF16PtrFromString(milimDest)
+	pDLLPath, _ := syscall.UTF16PtrFromString(mDll)
 	pTypeName, _ := syscall.UTF16PtrFromString("Milim.InitMilim")
 	pMethodName, _ := syscall.UTF16PtrFromString("Nava")
 	pArgument, _ := syscall.UTF16PtrFromString("unused")
@@ -89,7 +75,6 @@ func Nava() {
 		fmt.Printf("ExecuteInAppDomain failed (code: 0x%x)\n", hr)
 		return
 	}
-	fmt.Println("[Nava] Loaded Nava.dll")
 
 	if xe() == "safeexambrowser.client.exe" {
 		fmt.Println("begin hiding banner")
