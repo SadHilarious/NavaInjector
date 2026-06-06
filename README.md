@@ -53,7 +53,7 @@ The injector is entry point of this project. I embed Nava.dll and Milim.dll to t
 cd injector
 copy ..\Milim\bin\x64\Debug\Milim.dll .\
 copy ..\Nava\nava.dll .\
-go build -ldflags="-H windowsgui" -o nava_standalone.exe
+go build -o nava_standalone.exe
 ```
 
 To build without a terminal window appearing, please use this command
