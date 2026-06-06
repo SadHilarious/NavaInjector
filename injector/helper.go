@@ -43,7 +43,7 @@ func findProcessSync(name string) uint32 {
 	return <-ch
 }
 
-func backgroundInject(targetName, dllPath string, interval time.Duration, onInjectSuccess func(uint32)) {
+func backgroundInject(targetName, dllPath string, interval time.Duration) {
 	fmt.Printf("[Nava] Watching for %s . . . \n", targetName)
 
 	for {
@@ -65,10 +65,6 @@ func backgroundInject(targetName, dllPath string, interval time.Duration, onInje
 
 				markInjected(pid)
 				fmt.Printf("[Nava] Injected into PID %d\n", pid)
-
-				if onInjectSuccess != nil {
-					onInjectSuccess(pid)
-				}
 			}
 		}
 

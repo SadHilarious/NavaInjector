@@ -1,6 +1,7 @@
 ﻿using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -15,6 +16,11 @@ namespace Milim
         {
             var milim = new Harmony("lord.of.wrath");
             milim.PatchAll(Assembly.GetExecutingAssembly());
+
+            if (Process.GetCurrentProcess().ProcessName.ToLower() == "safeexambrowser.client") {
+                patch.InternalContextMenuHandler.Apply(milim);
+            }
+
             return 7;
         }
     }

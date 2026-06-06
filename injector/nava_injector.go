@@ -15,7 +15,7 @@ func main() {
 	nDll := setup()
 	enablePriv()
 
-	fmt.Println("[Nava] Starting . . .")
+	fmt.Println("[Nava] Ready . . .")
 	sebPid := findProcessSync(sebParent)
 
 	if sebPid != 0 {
@@ -26,9 +26,6 @@ func main() {
 			fmt.Println("[Nava::Error] Failed to inject nava in parent process", e.Error())
 		} else {
 			markInjected(sebPid)
-			if e := callExportedFunction(sebPid, nDll, "Nava"); e != nil {
-				fmt.Println("[Nava::Error] Failed to call Nava", e.Error())
-			}
 		}
 	}
 
@@ -42,15 +39,7 @@ func main() {
 		backgroundInject(
 			sebClient,
 			nDll,
-			1*time.Second,
-			func(pid uint32) {
-				// onsuccess
-				fmt.Printf("[Nava::AutoReInject] Calling Nava on PID %d\n", pid)
-				time.Sleep(300 * time.Millisecond)
-				if err := callExportedFunction(pid, nDll, "Nava"); err != nil {
-					fmt.Printf("[Nava::AutoReInject::Error] Call Nava failed: %v\n", err)
-				}
-			},
+			500*time.Millisecond,
 		)
 	}()
 

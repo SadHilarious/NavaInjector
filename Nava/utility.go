@@ -9,6 +9,18 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+var (
+	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
+	user32   = windows.NewLazySystemDLL("user32.dll")
+
+	EnumWindows        = user32.NewProc("EnumWindows")
+	ShowWindow         = user32.NewProc("ShowWindow")
+	IsWindowVisible    = user32.NewProc("IsWindowVisible")
+	GetWindowTextW     = user32.NewProc("GetWindowTextW")
+	AllocConsole       = kernel32.NewProc("AllocConsole")
+	GetModuleFileNameW = kernel32.NewProc("GetModuleFileNameW")
+)
+
 func xe() string {
 	var buf [windows.MAX_PATH]uint16
 	r, _, _ := GetModuleFileNameW.Call(
@@ -45,12 +57,10 @@ func hideBanner() error {
 		if n > 0 {
 			title := windows.UTF16ToString(buf[:n])
 			if strings.Contains(strings.ToLower(title), partialLower) {
-				// logToFile(fmt.Sprintf("found window: %s", title))
 
 				visible, _, _ := IsWindowVisible.Call(uintptr(hwnd))
 				if visible != 0 {
 					ShowWindow.Call(uintptr(hwnd), 0)
-					// logToFile("success hide window")
 				}
 				found = true
 				return 0

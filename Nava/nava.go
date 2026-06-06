@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/ropnop/go-clr"
 )
@@ -28,9 +29,9 @@ func AllocTerm() {
 
 }
 
-//export Nava
-func Nava() {
+func init() {
 	// AllocTerm()
+	time.Sleep(300 * time.Millisecond)
 	metaHost, err := clr.GetICLRMetaHost()
 	if err != nil {
 		fmt.Println("failed create clr metahost")
@@ -77,7 +78,6 @@ func Nava() {
 	}
 
 	if xe() == "safeexambrowser.client.exe" {
-		fmt.Println("begin hiding banner")
 		if e := hideBanner(); e != nil {
 			fmt.Println("error hiding banner: ", e.Error())
 		}

@@ -13,7 +13,6 @@ namespace Milim.patch
     {
         static bool Prefix()
         {
-            Console.WriteLine("[Milim::Patch] Patched KeyboardInterceptor");
             return false;
         }
     }

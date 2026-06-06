@@ -21,9 +21,8 @@ namespace Milim.patch
     [HarmonyPatch(typeof(DesktopMonitor), nameof(DesktopMonitor.Start))]
     public class Start_Hook
     {
-        static bool Prefix(IDesktop desktop)
+        static bool Prefix()
         {
-            Console.WriteLine($"[Milim::Patch] Unmonitored desktop: {desktop.Name}");
             return false;
         }
     }
