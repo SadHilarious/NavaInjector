@@ -16,6 +16,7 @@ Wait until it say `[Nava] Ready`, then you can start your Safe Exam Browser by d
 > [!WARNING]
 > Always close your SEB with bottom right power button on the taskbar provided by SEB.
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F1F611FQO4)
 
 ## Build from scratch
 
