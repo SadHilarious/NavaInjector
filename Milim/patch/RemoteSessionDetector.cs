@@ -11,7 +11,7 @@ namespace Milim.patch
     [HarmonyPatch(typeof(RemoteSessionDetector), nameof(RemoteSessionDetector.IsRemoteSession))]
     public class RemoteSessionDetectorPatch
     {
-        public void Postfix(ref bool __result)
+        static void Postfix(ref bool __result)
         {
             __result = false;
         }
