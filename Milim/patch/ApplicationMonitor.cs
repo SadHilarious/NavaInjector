@@ -45,16 +45,19 @@ namespace Milim.patch
         {
             var thiz = Traverse.Create(__instance);
             var blacklist = thiz.Field("blacklist").GetValue<IList<BlacklistApplication>>();
-            var changeAbleName = process.Name.Replace(" ", "").ToLower();
-            var originalName = process.OriginalName.Replace(" ", "").ToLower();
+            var changeAbleName = process.Name?.Replace(" ", "").ToLower() ?? string.Empty;
+            var originalName = process.OriginalName?.Replace(" ", "").ToLower() ?? string.Empty;
 
             foreach (var b in blacklist)
             {
-                if (b.OriginalName.ToLower().Replace(" ", "") == originalName)
+                var bOri = b.OriginalName?.Replace(" ", "").ToLower() ?? string.Empty;
+                var bExe = b.ExecutableName?.Replace(" ", "").ToLower() ?? string.Empty;
+
+                if (!string.IsNullOrEmpty(bOri) && bOri == originalName)
                 {
                     return false;
                 }
-                else if (b.ExecutableName.ToLower().Replace(" ", "") == changeAbleName)
+                else if (!string.IsNullOrEmpty(bExe) && bExe == changeAbleName)
                 {
                     return false;
                 }

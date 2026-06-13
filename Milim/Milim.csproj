@@ -218,6 +218,7 @@
     <Compile Include="patch\DesktopMonitor.cs" />
     <Compile Include="patch\NativeMethods.cs" />
     <Compile Include="patch\ProcessFactory.cs" />
+    <Compile Include="patch\RemoteSessionDetector.cs" />
     <Compile Include="patch\TaskviewKeyboardActivator.cs" />
     <Compile Include="patch\UserInterface.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
