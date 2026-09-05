@@ -9,6 +9,8 @@
 *.cache
 *.obj
 *.pch
+*.dll
+*.exe
 
 /Milim/bin/
 /Milim/obj/
