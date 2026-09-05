@@ -49,7 +49,7 @@ jobs:
 
       - name: Cache SEB application files
         id: seb-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: C:\Program Files\SafeExamBrowser
           key: seb-app-${{ steps.seb-release.outputs.tag }}
@@ -96,6 +96,10 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
+          # Default is "minimal", which does NOT inherit the runner PATH —
+          # then "go" (installed by setup-go into the job PATH) is not found
+          # in the msys2 shell and the build fails with exit code 127.
+          path-type: inherit
           release: false
           update: false
           install: mingw-w64-x86_64-gcc
