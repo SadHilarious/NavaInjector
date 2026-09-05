@@ -1,0 +1,156 @@
+name: Build
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The exact release/MSI asset is resolved from the GitHub API at build time.
+  SEB_VERSION_PREFIX: "3.10.0"
+  DOTNET_CONFIGURATION: Release
+  GO_VERSION: "1.24"
+
+jobs:
+  build:
+    name: Build NavaInjector (x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # --------------------------------------------------------------------
+      # SEB reference assemblies
+      #
+      # Milim.csproj references ~35 assemblies via ABSOLUTE HintPaths to
+      # C:\Program Files\SafeExamBrowser\Application\*. CI runners do not
+      # have SEB installed, so fetch the official MSI and extract the files
+      # there. "msiexec /a" is an administrative (network) install: it only
+      # extracts files, it does not install SEB or its service.
+      # --------------------------------------------------------------------
+      - name: Resolve SEB release
+        id: seb-release
+        shell: pwsh
+        run: |
+          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/SafeExamBrowser/seb-win-refactoring/releases?per_page=100"
+          $pattern = "^v?$([regex]::Escape('${{ env.SEB_VERSION_PREFIX }}'))"
+          $release = $releases | Where-Object { $_.tag_name -match $pattern -and -not $_.prerelease } | Select-Object -First 1
+          if (-not $release) {
+            $release = $releases | Where-Object { $_.tag_name -match $pattern } | Select-Object -First 1
+          }
+          if (-not $release) { throw "No SEB release found matching '$($pattern)'" }
+          $asset = $release.assets | Where-Object { $_.name -like "*.msi" -and $_.name -notlike "*x86*" } | Select-Object -First 1
+          if (-not $asset) { throw "No x64 MSI asset found in SEB release $($release.tag_name)" }
+          "tag=$($release.tag_name)" >> $env:GITHUB_OUTPUT
+          "url=$($asset.browser_download_url)" >> $env:GITHUB_OUTPUT
+          Write-Host "Using SEB $($release.tag_name) -> $($asset.name) ($([math]::Round($asset.size / 1MB)) MB)"
+
+      - name: Cache SEB application files
+        id: seb-cache
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\SafeExamBrowser
+          key: seb-app-${{ steps.seb-release.outputs.tag }}
+
+      - name: Download and extract SEB assemblies
+        if: steps.seb-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $msi = Join-Path $env:RUNNER_TEMP "seb.msi"
+          $extract = Join-Path $env:RUNNER_TEMP "seb-extract"
+          Write-Host "Downloading ${{ steps.seb-release.outputs.url }}"
+          Invoke-WebRequest -Uri "${{ steps.seb-release.outputs.url }}" -OutFile $msi
+
+          # Administrative install = pure file extraction (no installation).
+          $p = Start-Process msiexec -ArgumentList "/a", "`"$msi`"", "/qn", "TARGETDIR=`"$extract`"" -Wait -PassThru -NoNewWindow
+          $exe = Get-ChildItem $extract -Recurse -Filter "SafeExamBrowser.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) {
+            # Fallback: extract the MSI payload with 7-Zip (preinstalled on runners).
+            Write-Host "msiexec /a did not yield SafeExamBrowser.exe (exit $($p.ExitCode)), falling back to 7z"
+            7z x $msi -o"$extract" -y | Out-Null
+            $exe = Get-ChildItem $extract -Recurse -Filter "SafeExamBrowser.exe" | Select-Object -First 1
+          }
+          if (-not $exe) { throw "SafeExamBrowser.exe not found in the extracted MSI" }
+
+          $app = Split-Path $exe.FullName
+          New-Item -ItemType Directory -Force "C:\Program Files\SafeExamBrowser\Application" | Out-Null
+          Copy-Item "$app\*" "C:\Program Files\SafeExamBrowser\Application" -Recurse -Force
+          $count = (Get-ChildItem "C:\Program Files\SafeExamBrowser\Application").Count
+          Write-Host "Placed $count files from $app"
+
+      # --------------------------------------------------------------------
+      # Toolchain
+      # --------------------------------------------------------------------
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "${{ env.GO_VERSION }}"
+          cache: false # two go.mod files (Nava/, injector/) - module cache handled by go itself
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Setup MinGW-w64 (cgo toolchain for nava.dll)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          release: false
+          update: false
+          install: mingw-w64-x86_64-gcc
+
+      # --------------------------------------------------------------------
+      # 1) nava.dll - Go cgo CLR-hosting loader (--buildmode=c-shared)
+      # --------------------------------------------------------------------
+      - name: Build nava.dll
+        shell: msys2 {0}
+        run: |
+          cd Nava
+          CGO_ENABLED=1 go build -o nava.dll --buildmode=c-shared
+          ls -la nava.dll
+
+      # --------------------------------------------------------------------
+      # 2) Milim.dll - .NET Framework 4.8.1 classic csproj, vendored NuGet
+      #    packages (no restore needed), Fody/Costura weaving
+      # --------------------------------------------------------------------
+      - name: Build Milim.dll
+        shell: pwsh
+        run: |
+          msbuild Milim\Milim.csproj `
+            -t:Build `
+            -p:Configuration=${{ env.DOTNET_CONFIGURATION }} `
+            -p:Platform=x64 `
+            -v:minimal -nologo
+          if (-not (Test-Path "Milim\bin\x64\${{ env.DOTNET_CONFIGURATION }}\Milim.dll")) { throw "Milim.dll was not produced" }
+          Get-Item "Milim\bin\x64\${{ env.DOTNET_CONFIGURATION }}\Milim.dll"
+
+      # --------------------------------------------------------------------
+      # 3) nava_standalone.exe - pure Go injector, embeds both DLLs
+      #    (go:embed requires Milim.dll and nava.dll in injector/ first)
+      # --------------------------------------------------------------------
+      - name: Build nava_standalone.exe
+        shell: pwsh
+        run: |
+          Copy-Item "Milim\bin\x64\${{ env.DOTNET_CONFIGURATION }}\Milim.dll" "injector\Milim.dll" -Force
+          Copy-Item "Nava\nava.dll" "injector\nava.dll" -Force
+          Set-Location injector
+          go build -o nava_standalone.exe
+          if (-not (Test-Path "nava_standalone.exe")) { throw "nava_standalone.exe was not produced" }
+          Get-Item nava_standalone.exe
+
+      - name: Hash artifacts
+        shell: pwsh
+        run: |
+          Get-FileHash injector\nava_standalone.exe, injector\Milim.dll, injector\nava.dll -Algorithm SHA256 |
+            Format-Table Hash, Path -AutoSize | Out-String -Width 200
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: NavaInjector-${{ github.sha }}
+          path: |
+            injector/nava_standalone.exe
+            injector/Milim.dll
+            injector/nava.dll
+          if-no-files-found: error
