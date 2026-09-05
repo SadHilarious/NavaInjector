@@ -1,6 +1,8 @@
 # Nava
 Nava work against SEB 3.10.1
 
+Simple fork that prevent SEB from killing explorer.exe at start and add ci/cd builds each commit
+
 The goal of this script is to prevent SEB to start new obfuscated desktop and put in KIOSK mode. My method is to patch all necessary function with Harmony C#. You can see all that function inside `NavaInjector/Milim/patch`
 
 <p align="center">
@@ -9,13 +11,18 @@ The goal of this script is to prevent SEB to start new obfuscated desktop and pu
 
 ## Quick Usage
 
-First download [nava.exe](https://github.com/seynth/NavaInjector/releases), then run it as Administrator, but make sure to turn off Real-time Protection windows defender. 
+Make sure to turn off Real-time Protection windows defender
 
-Wait until it say `[Nava] Ready`, then you can start your Safe Exam Browser by double click .seb file or from exercise/quiz provider. Dont close your terminal!. Hiding Taskbar can be done by go to Taskbar settings > Taskbar behaviors > Automatically hide the taskbar 
+First download [Release zip](https://github.com/SadHilarious/NavaInjector/releases), extract then run ``nava_standalone.exe`` as Administrator 
 
-> [!WARNING]
+Wait until it say `[Nava] Ready`, then you can start your Safe Exam Browser by double click .seb file or from exercise/quiz provider. Dont close your terminal!
+
+Hiding Taskbar can be done by go to Taskbar settings > Taskbar behaviors > Automatically hide the taskbar 
+
+> [WARNING]
 > Always close your SEB with bottom right power button on the taskbar provided by SEB.
 
+- Support original author<br>
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F1F611FQO4)
 
 ## Build from scratch
@@ -61,5 +68,6 @@ go build -ldflags="-H windowsgui" -o nava_standalone.exe
 ```
 Since there is no visible console output, please allow 30-60 seconds for Nava to initialize. When you're done you can kill Nava by opening Task Manager > Search nava_standalone > Right Click > End Task
 
-
+## Step 4
+Or just run [build.yml](./.github/workflows/build.yml) inside ``Actions`` tab
 
